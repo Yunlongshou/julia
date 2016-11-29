@@ -779,6 +779,7 @@ export
     chomp,
     chop,
     chr2ind,
+    codeunit,
     dec,
     digits,
     digits!,

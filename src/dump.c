@@ -91,6 +91,7 @@ static const intptr_t Array1d_tag      = 30;
 static const intptr_t Singleton_tag    = 31;
 static const intptr_t CommonSym_tag    = 32;
 static const intptr_t NearbyGlobal_tag = 33;  // a GlobalRef pointing to tree_enclosing_module
+static const intptr_t String_tag       = 34;
 static const intptr_t Null_tag         = 253;
 static const intptr_t ShortBackRef_tag = 254;
 static const intptr_t BackRef_tag      = 255;
@@ -997,6 +998,11 @@ static void jl_serialize_value_(jl_serializer_state *s, jl_value_t *v)
     else if (jl_typeis(v, jl_task_type)) {
         jl_error("Task cannot be serialized");
     }
+    else if (jl_typeis(v, jl_string_type)) {
+        writetag(s->s, (jl_value_t*)String_tag);
+        write_int32(s->s, jl_string_len(v));
+        ios_write(s->s, jl_string_data(v), jl_string_len(v));
+    }
     else {
         jl_datatype_t *t = (jl_datatype_t*)jl_typeof(v);
         void *data = jl_data_ptr(v);
@@ -1337,6 +1343,7 @@ static jl_value_t *jl_deserialize_datatype(jl_serializer_state *s, int pos, jl_v
         assert(0 && "corrupt deserialization state");
         abort();
     }
+    if (loc == (jl_value_t**)&jl_string_type) *loc = (jl_value_t*)dt;
     assert(s->tree_literal_values==NULL && s->mode != MODE_AST && "no new data-types expected during MODE_AST");
     assert(pos == backref_list.len - 1 && "nothing should have been deserialized since assigning pos");
     backref_list.items[pos] = dt;
@@ -1963,6 +1970,14 @@ static jl_value_t *jl_deserialize_value_(jl_serializer_state *s, jl_value_t *vta
     else if (vtag == (jl_value_t*)Singleton_tag) {
         return jl_deserialize_value_singleton(s, loc);
     }
+    else if (vtag == (jl_value_t*)String_tag) {
+        size_t n = read_int32(s->s);
+        jl_value_t *str = jl_alloc_string(n);
+        if (usetable)
+            arraylist_push(&backref_list, str);
+        ios_read(s->s, jl_string_data(str), n);
+        return str;
+    }
     else {
         assert(vtag == (jl_value_t*)jl_datatype_type || vtag == (jl_value_t*)SmallDataType_tag);
         return jl_deserialize_value_any(s, vtag, loc);
@@ -2284,6 +2299,7 @@ static void jl_save_system_image_to_stream(ios_t *f)
 
     jl_idtable_type = jl_base_module ? jl_get_global(jl_base_module, jl_symbol("ObjectIdDict")) : NULL;
 
+    jl_serialize_value(&s, jl_string_type);
     jl_serialize_value(&s, jl_main_module);
     jl_serialize_value(&s, jl_top_module);
     jl_serialize_value(&s, jl_typeinf_func);
@@ -2388,6 +2404,7 @@ static void jl_restore_system_image_from_stream(ios_t *f)
         jl_get_ptls_states()
     };
 
+    jl_string_type = (jl_datatype_t*)jl_deserialize_value(&s, (jl_value_t**)&jl_string_type);
     jl_main_module = (jl_module_t*)jl_deserialize_value(&s, NULL);
     jl_top_module = (jl_module_t*)jl_deserialize_value(&s, NULL);
     jl_internal_main_module = jl_main_module;
@@ -2938,7 +2955,7 @@ void jl_init_serializer(void)
     void *tags[] = { jl_symbol_type, jl_ssavalue_type, jl_datatype_type, jl_slotnumber_type,
                      jl_simplevector_type, jl_array_type, jl_typedslot_type,
                      jl_expr_type, (void*)LongSymbol_tag, (void*)LongSvec_tag,
-                     (void*)LongExpr_tag, (void*)LiteralVal_tag,
+                     (void*)LongExpr_tag, (void*)LiteralVal_tag, (void*)String_tag,
                      (void*)SmallInt64_tag, (void*)SmallDataType_tag,
                      (void*)Int32_tag, (void*)Array1d_tag, (void*)Singleton_tag,
                      jl_module_type, jl_tvar_type, jl_method_instance_type, jl_method_type,
@@ -2967,7 +2984,7 @@ void jl_init_serializer(void)
                      jl_box_int32(33), jl_box_int32(34), jl_box_int32(35),
                      jl_box_int32(36), jl_box_int32(37), jl_box_int32(38),
                      jl_box_int32(39), jl_box_int32(40), jl_box_int32(41),
-                     jl_box_int32(42), jl_box_int32(43),
+                     jl_box_int32(42),
 #endif
                      jl_box_int64(0), jl_box_int64(1), jl_box_int64(2),
                      jl_box_int64(3), jl_box_int64(4), jl_box_int64(5),
@@ -2984,7 +3001,7 @@ void jl_init_serializer(void)
                      jl_box_int64(33), jl_box_int64(34), jl_box_int64(35),
                      jl_box_int64(36), jl_box_int64(37), jl_box_int64(38),
                      jl_box_int64(39), jl_box_int64(40), jl_box_int64(41),
-                     jl_box_int64(42), jl_box_int64(43),
+                     jl_box_int64(42),
 #endif
                      jl_labelnode_type, jl_linenumbernode_type,
                      jl_gotonode_type, jl_quotenode_type,
