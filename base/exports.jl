@@ -950,6 +950,7 @@ export
     sizeof,
 
 # tasks and conditions
+    channeled_tasks,
     Condition,
     consume,
     current_task,

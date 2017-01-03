@@ -535,14 +535,6 @@ Show every part of the representation of a value.
 dump
 
 """
-    consume(task, values...)
-
-Receive the next value passed to `produce` by the specified task. Additional arguments may
-be passed, to be returned from the last `produce` call in the producer.
-"""
-consume
-
-"""
     cummax(A, [dim])
 
 Cumulative maximum along a dimension. The dimension defaults to 1.
@@ -1481,14 +1473,6 @@ Pushes a new display `d` on top of the global display-backend stack. Calling `di
 the topmost backend that does not throw a `MethodError`).
 """
 pushdisplay
-
-"""
-    produce(value)
-
-Send the given value to the last `consume` call, switching to the consumer task. If the next
-`consume` call passes any values, they are returned by `produce`.
-"""
-produce
 
 """
     StackOverflowError()
