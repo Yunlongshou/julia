@@ -720,6 +720,14 @@ Get the name of a generic `Function` as a symbol, or `:anonymous`.
 """
 function_name(f::Function) = typeof(f).name.mt.name
 
+function find_source_file(file::String)
+    (isabspath(file) || isfile(file)) && return file
+    file2 = find_in_path(file)
+    file2 !== nothing && return file2
+    file2 = joinpath(JULIA_HOME, DATAROOTDIR, "julia", "base", file)
+    return isfile(file2) ? file2 : nothing
+end
+
 functionloc(m::Core.MethodInstance) = functionloc(m.def)
 
 """

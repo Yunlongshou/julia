@@ -113,14 +113,6 @@ function find_in_path(name::String, wd)
 end
 find_in_path(name::AbstractString, wd = pwd()) = find_in_path(String(name), wd)
 
-function find_source_file(file::String)
-    (isabspath(file) || isfile(file)) && return file
-    file2 = find_in_path(file)
-    file2 !== nothing && return file2
-    file2 = joinpath(JULIA_HOME, DATAROOTDIR, "julia", "base", file)
-    return isfile(file2) ? file2 : nothing
-end
-
 function find_all_in_cache_path(mod::Symbol)
     name = string(mod)
     paths = String[]
