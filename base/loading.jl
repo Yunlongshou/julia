@@ -54,13 +54,13 @@ elseif is_apple()
                         path, attr_list, buf, sizeof(buf), FSOPT_NOFOLLOW)
             systemerror(:getattrlist, ret ≠ 0)
             filename_length = unsafe_load(
-              convert(Ptr{UInt32}, pointer(buf) + 8))
+                convert(Ptr{UInt32}, pointer(buf) + 8))
             if (filename_length + header_size) > length(buf)
                 resize!(buf, filename_length + header_size)
                 continue
             end
             casepreserved_basename =
-              view(buf, (header_size+1):(header_size+filename_length-1))
+                view(buf, (header_size+1):(header_size+filename_length-1))
             break
         end
         # Hack to compensate for inability to create a string from a subarray with no allocations.
