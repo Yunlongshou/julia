@@ -610,6 +610,17 @@ static int subtype_tuple(jl_datatype_t *xd, jl_datatype_t *yd, jl_stenv_t *e, in
     return (lx==ly && vx==vy) || (vy && (lx >= (vx ? ly : (ly-1))));
 }
 
+static int union_has_tvar(jl_uniontype_t *u)
+{
+    if (jl_is_typevar(u->a) || jl_is_typevar(u->b))
+        return 1;
+    if ((jl_is_uniontype(u->a) && union_has_tvar((jl_uniontype_t*)u->a)))
+        return 1;
+    if ((jl_is_uniontype(u->b) && union_has_tvar((jl_uniontype_t*)u->b)))
+        return 1;
+    return 0;
+}
+
 static int forall_exists_equal(jl_value_t *x, jl_value_t *y, jl_stenv_t *e);
 
 // `param` means we are currently looking at a parameter of a type constructor
@@ -629,8 +640,8 @@ static int subtype(jl_value_t *x, jl_value_t *y, jl_stenv_t *e, int param)
             return 1;
         if (jl_is_unionall(x))
             return subtype_unionall(y, (jl_unionall_t*)x, e, 0, param);
-        int ui = 1;
-        if (jl_is_typevar(x)) {
+        int ui = !jl_is_typevar(x);
+        if (!ui && union_has_tvar((jl_uniontype_t*)y)) {
             // The `convert(Type{T},T)` pattern, where T is a Union, required changing priority
             // of unions and vars: if matching `typevar <: union`, first try to match the whole
             // union against the variable before trying to take it apart to see if there are any
@@ -970,17 +981,7 @@ static jl_value_t *intersect_union(jl_value_t *x, jl_uniontype_t *u, jl_stenv_t 
         JL_GC_POP();
         return i;
     }
-    jl_unionstate_t *state = &e->Runions;
-    int ui = statestack_get(state, state->depth);
-    state->depth++;
-    jl_value_t *choice;
-    if (ui == 0) {
-        state->more = state->depth;
-        choice = u->a;
-    }
-    else {
-        choice = u->b;
-    }
+    jl_value_t *choice = pick_union_element((jl_value_t*)u, e, 1);
     // try all possible choices in covariant position; union them all together at the top level
     return R ? intersect(x, choice, e, param) : intersect(choice, x, e, param);
 }
